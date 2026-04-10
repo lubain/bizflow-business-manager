@@ -1,6 +1,25 @@
+# Dependencies
+node_modules/
 
-node_modules
-dist
+# Build
+dist/
 
-todo.md
+# Env
 .env
+.env.production
+.env.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# TypeScript
+*.tsbuildinfo

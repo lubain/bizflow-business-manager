@@ -4,16 +4,10 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
-  OneToMany,
 } from 'typeorm';
-import { Exclude } from 'class-transformer';
 
-export enum UserRole {
-  ADMIN = 'admin',
-}
-
-@Entity('users')
-export class User {
+@Entity('admins')
+export class Admin {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -26,11 +20,7 @@ export class User {
   @Column()
   prenom: string;
 
-  @Column({ type: 'enum', enum: UserRole, default: UserRole.ADMIN })
-  role: UserRole;
-
   @Column()
-  @Exclude()
   password: string;
 
   @Column({ default: true })

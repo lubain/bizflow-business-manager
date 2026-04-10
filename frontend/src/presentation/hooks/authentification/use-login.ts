@@ -1,9 +1,18 @@
-import { useNavigate } from 'react-router-dom';
-import { useAuthStore } from '@/store/authStore';
-import { AdminRoutesNavigations, PublicRoutesNavigation } from '@/shared/constants/AppRoutesNavigation';
+import { useNavigate } from "react-router-dom";
+import { useAuthStore } from "@/store/authStore";
+import {
+  AdminRoutesNavigations,
+  PublicRoutesNavigation,
+} from "@/shared/constants/AppRoutesNavigation";
 
 const useLogin = () => {
-  const { user, loading, error, login: storeLogin, logout: storeLogout } = useAuthStore();
+  const {
+    user,
+    loading,
+    error,
+    login: storeLogin,
+    logout: storeLogout,
+  } = useAuthStore();
   const navigate = useNavigate();
 
   const login = async (email: string, password: string) => {
@@ -13,8 +22,8 @@ const useLogin = () => {
 
   const logout = () => {
     storeLogout();
-    document.documentElement.classList.remove('dark');
-    localStorage.setItem('theme', 'light');
+    document.documentElement.classList.remove("dark");
+    localStorage.setItem("theme", "light");
     navigate(PublicRoutesNavigation.MAIN_PAGE);
   };
 

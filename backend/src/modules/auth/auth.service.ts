@@ -7,89 +7,87 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { User } from '../users/entities/user.entity';
+import { Admin } from './entities/admin.entity';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectRepository(User)
-    private userRepository: Repository<User>,
+    @InjectRepository(Admin)
+    private adminRepository: Repository<Admin>,
     private jwtService: JwtService,
   ) {}
 
-  async validateUser(email: string, password: string): Promise<User | null> {
-    const user = await this.userRepository.findOne({ where: { email } });
-    if (!user) return null;
-
-    const isMatch = await bcrypt.compare(password, user.password);
+  async validateAdmin(email: string, password: string): Promise<Admin | null> {
+    const admin = await this.adminRepository.findOne({
+      where: { email, isActive: true },
+    });
+    if (!admin) return null;
+    const isMatch = await bcrypt.compare(password, admin.password);
     if (!isMatch) return null;
-
-    return user;
+    return admin;
   }
 
   async login(loginDto: LoginDto) {
-    const user = await this.validateUser(loginDto.email, loginDto.password);
-    if (!user) {
+    const admin = await this.validateAdmin(loginDto.email, loginDto.password);
+    if (!admin) {
       throw new UnauthorizedException('Email ou mot de passe incorrect');
     }
-
-    return this.buildAuthResponse(user);
+    return this.buildAuthResponse(admin);
   }
 
   async register(registerDto: RegisterDto) {
-    const exists = await this.userRepository.findOne({
+    const exists = await this.adminRepository.findOne({
       where: { email: registerDto.email },
     });
     if (exists) {
-      throw new ConflictException('Un utilisateur avec cet email existe déjà');
+      throw new ConflictException(
+        'Un administrateur avec cet email existe déjà',
+      );
     }
-
     const hashedPassword = await bcrypt.hash(registerDto.password, 10);
-    const user = this.userRepository.create({
+    const admin = this.adminRepository.create({
       ...registerDto,
       password: hashedPassword,
     });
-
-    await this.userRepository.save(user);
-    return this.buildAuthResponse(user);
+    await this.adminRepository.save(admin);
+    return this.buildAuthResponse(admin);
   }
 
-  async getProfile(userId: number) {
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
+  async getProfile(adminId: number) {
+    const admin = await this.adminRepository.findOne({
+      where: { id: adminId },
     });
-    if (!user) throw new UnauthorizedException('Utilisateur introuvable');
-    const { password, ...result } = user;
+    if (!admin) throw new UnauthorizedException('Administrateur introuvable');
+    const { password, ...result } = admin;
     return result;
   }
 
   async changePassword(
-    userId: number,
+    adminId: number,
     currentPassword: string,
     newPassword: string,
   ) {
-    const user = await this.userRepository.findOne({ where: { id: userId } });
-    if (!user) throw new UnauthorizedException();
-
-    const isValid = await bcrypt.compare(currentPassword, user.password);
+    const admin = await this.adminRepository.findOne({
+      where: { id: adminId },
+    });
+    if (!admin) throw new UnauthorizedException();
+    const isValid = await bcrypt.compare(currentPassword, admin.password);
     if (!isValid) {
       throw new UnauthorizedException('Mot de passe actuel incorrect');
     }
-
-    user.password = await bcrypt.hash(newPassword, 10);
-    await this.userRepository.save(user);
+    admin.password = await bcrypt.hash(newPassword, 10);
+    await this.adminRepository.save(admin);
     return { message: 'Mot de passe modifié avec succès' };
   }
 
-  private buildAuthResponse(user: User) {
-    const payload = { sub: user.id, email: user.email, role: user.role };
-    const { password, ...userWithoutPassword } = user;
-
+  private buildAuthResponse(admin: Admin) {
+    const payload = { sub: admin.id, email: admin.email, role: 'admin' };
+    const { password, ...adminWithoutPassword } = admin;
     return {
       access_token: this.jwtService.sign(payload),
-      user: userWithoutPassword,
+      user: adminWithoutPassword,
     };
   }
 }

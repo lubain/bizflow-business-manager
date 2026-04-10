@@ -18,6 +18,12 @@ interface AuthState {
 
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  register: (
+    nom: string,
+    prenom: string,
+    email: string,
+    password: string
+  ) => Promise<void>;
   clearError: () => void;
 }
 
@@ -35,6 +41,21 @@ export const useAuthStore = create<AuthState>()(
           const data = await api.post<{ access_token: string; user: AuthUser }>(
             "/auth/login",
             { email, password }
+          );
+          localStorage.setItem("access_token", data.access_token);
+          set({ user: data.user, token: data.access_token, loading: false });
+        } catch (err: any) {
+          set({ error: err.message, loading: false });
+          throw err;
+        }
+      },
+
+      register: async (nom, prenom, email, password) => {
+        set({ loading: true, error: null });
+        try {
+          const data = await api.post<{ access_token: string; user: AuthUser }>(
+            "/auth/register",
+            { nom, prenom, email, password }
           );
           localStorage.setItem("access_token", data.access_token);
           set({ user: data.user, token: data.access_token, loading: false });
