@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useAuthStore } from '@/store/authStore';
+import { useState, useEffect } from "react";
+import { useAuthStore } from "@/store/authStore";
 
 export const useRestoreAuth = () => {
   const [isRestoreDone, setIsRestoreDone] = useState(false);
@@ -8,9 +8,9 @@ export const useRestoreAuth = () => {
   useEffect(() => {
     // Token is persisted via zustand/persist — just verify it's coherent
     if (token) {
-      localStorage.setItem('access_token', token);
+      localStorage.setItem("access_token", token);
     } else {
-      localStorage.removeItem('access_token');
+      localStorage.removeItem("access_token");
     }
     setIsRestoreDone(true);
   }, []);

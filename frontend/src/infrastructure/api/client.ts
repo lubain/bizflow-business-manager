@@ -1,7 +1,7 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
 function getToken(): string | null {
-  return localStorage.getItem('access_token');
+  return localStorage.getItem("access_token");
 }
 
 async function request<T>(
@@ -10,7 +10,7 @@ async function request<T>(
 ): Promise<T> {
   const token = getToken();
   const headers: HeadersInit = {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(options.headers || {}),
   };
@@ -36,8 +36,11 @@ async function request<T>(
 export const api = {
   get: <T>(url: string) => request<T>(url),
   post: <T>(url: string, body: unknown) =>
-    request<T>(url, { method: 'POST', body: JSON.stringify(body) }),
+    request<T>(url, { method: "POST", body: JSON.stringify(body) }),
   patch: <T>(url: string, body?: unknown) =>
-    request<T>(url, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
-  delete: <T>(url: string) => request<T>(url, { method: 'DELETE' }),
+    request<T>(url, {
+      method: "PATCH",
+      body: body ? JSON.stringify(body) : undefined,
+    }),
+  delete: <T>(url: string) => request<T>(url, { method: "DELETE" }),
 };

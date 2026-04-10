@@ -1,6 +1,6 @@
-import { Navigate, Outlet } from 'react-router-dom';
-import { useAuthStore } from '@/store/authStore';
-import { PublicRoutesNavigation } from '@/shared/constants/AppRoutesNavigation';
+import { Navigate, Outlet } from "react-router-dom";
+import { useAuthStore } from "@/store/authStore";
+import { PublicRoutesNavigation } from "@/shared/constants/AppRoutesNavigation";
 
 export default function PrivateRoute() {
   const { user } = useAuthStore();

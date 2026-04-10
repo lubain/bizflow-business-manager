@@ -1,98 +1,178 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Gestion Entreprises — Backend NestJS
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API REST — facturation, stock, clients, dépenses.
+Auth JWT via entité `Admin` (sans module `users`).
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Stack
 
-## Description
+- **NestJS** + TypeScript · **PostgreSQL** / TypeORM · **JWT** + Passport
+- **Helmet** (sécurité) · **Compression** gzip · **Throttling** (100 req/min)
+- **Swagger** `/api/docs` · **Health check** `/api/health`
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+---
 
-## Project setup
+## Démarrage local
 
 ```bash
-$ npm install
+npm install
+
+# Copier et adapter le fichier d'environnement
+cp .env.example .env
+
+# Lancer PostgreSQL via Docker
+docker-compose up -d
+
+# Démarrer en mode dev (hot reload)
+npm run start:dev
+
+# Charger les données de démo (admin@example.com / admin123)
+npm run seed
 ```
 
-## Compile and run the project
+Swagger : http://localhost:3000/api/docs
+
+---
+
+## Variables d'environnement
+
+| Variable          | Dev                     | Prod          | Description              |
+| ----------------- | ----------------------- | ------------- | ------------------------ |
+| `NODE_ENV`        | `development`           | `production`  | Environnement            |
+| `DATABASE_URL`    | `postgresql://...`      | URL Supabase  | Connexion DB             |
+| `DB_HOST`         | `localhost`             | —             | (si pas de DATABASE_URL) |
+| `DB_PORT`         | `5432`                  | —             |                          |
+| `DB_USERNAME`     | `postgres`              | —             |                          |
+| `DB_PASSWORD`     | `postgres`              | —             |                          |
+| `DB_NAME`         | `gestion_entreprises`   | —             |                          |
+| `JWT_SECRET`      | local-secret            | Secret long   | Clé de signature JWT     |
+| `JWT_EXPIRES_IN`  | `7d`                    | `7d`          | Durée token              |
+| `CORS_ORIGIN`     | `http://localhost:5173` | URL Vercel    | Origines autorisées      |
+| `PORT`            | `3000`                  | auto (Render) | Port d'écoute            |
+| `SWAGGER_ENABLED` | `true`                  | `true`        | Activer Swagger en prod  |
+
+---
+
+## Migrations (production)
+
+En production `synchronize` est désactivé. Utiliser les migrations :
 
 ```bash
-# development
-$ npm run start
+# Générer une migration depuis les entités
+npm run migration:generate -- src/database/migrations/NomMigration
 
-# watch mode
-$ npm run start:dev
+# Appliquer toutes les migrations
+npm run migration:run
 
-# production mode
-$ npm run start:prod
+# Annuler la dernière migration
+npm run migration:revert
 ```
 
-## Run tests
+La migration initiale `InitSchema` crée toutes les tables depuis zéro.
+
+---
+
+## Déploiement Production
+
+### 1. Supabase — Base de données
+
+1. Créer un projet sur [supabase.com](https://supabase.com)
+2. **Settings → Database → Connection string → URI (mode Transaction)**
+3. Copier l'URL : `postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres`
+4. En développement local, pointer `DATABASE_URL` vers Supabase pour appliquer les migrations :
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+DATABASE_URL="postgresql://..." npm run migration:run
+DATABASE_URL="postgresql://..." npm run seed
 ```
 
-## Deployment
+---
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+### 2. Render — Backend
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+1. Créer un compte sur [render.com](https://render.com)
+2. **New → Web Service → Connect GitHub**
+3. Paramètres :
+   - **Build** : `npm ci && npm run build`
+   - **Start** : `npm run start:prod`
+   - **Health Check** : `/api/health`
+4. Ajouter les variables d'environnement :
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+| Variable          | Valeur                              |
+| ----------------- | ----------------------------------- |
+| `NODE_ENV`        | `production`                        |
+| `DATABASE_URL`    | URL Supabase (URI mode Transaction) |
+| `JWT_SECRET`      | Chaîne aléatoire ≥ 64 chars         |
+| `CORS_ORIGIN`     | `https://votre-app.vercel.app`      |
+| `SWAGGER_ENABLED` | `true`                              |
+
+5. Récupérer l'URL du service (ex: `https://gestion-entreprises-api.onrender.com`)
+
+> ⚠️ Le plan **Free** de Render met le service en veille après 15 min d'inactivité.
+> Le premier appel peut prendre 30–60 secondes.
+> Utiliser le plan **Starter** ($7/mois) pour éviter ça.
+
+---
+
+### 3. Vercel — Frontend
+
+1. Créer un compte sur [vercel.com](https://vercel.com)
+2. **New Project → Import GitHub** (dossier frontend)
+3. **Environment Variables** :
+
+| Variable       | Valeur                                             |
+| -------------- | -------------------------------------------------- |
+| `VITE_API_URL` | `https://gestion-entreprises-api.onrender.com/api` |
+
+4. Framework preset : **Vite**
+5. Le fichier `vercel.json` gère les redirections SPA automatiquement
+
+---
+
+## Structure des modules
+
+```
+src/
+├── config/
+│   ├── database.config.ts          # Config DB (url + fallback host)
+│   ├── jwt.config.ts               # Config JWT
+│   └── typeorm-migration.config.ts # DataSource CLI migrations
+├── common/
+│   ├── filters/all-exceptions.filter.ts
+│   ├── guards/jwt-auth.guard.ts
+│   └── interceptors/transform.interceptor.ts
+├── database/
+│   ├── seed.ts                     # Données de démo
+│   └── migrations/
+│       └── 1700000000000-InitSchema.ts
+└── modules/
+    ├── auth/                       # Login, Register, JWT, Admin entity
+    ├── clients/                    # CRUD clients
+    ├── products/                   # CRUD + ajustement stock
+    ├── invoices/                   # CRUD + mark-as-paid + items
+    ├── expenses/                   # CRUD dépenses
+    ├── dashboard/                  # Stats globales
+    └── health/                     # /api/health (Terminus)
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+---
 
-## Resources
+## Endpoints
 
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+| Méthode          | Route                                | Auth | Description                   |
+| ---------------- | ------------------------------------ | ---- | ----------------------------- |
+| POST             | `/api/auth/login`                    | ❌   | Connexion → JWT               |
+| POST             | `/api/auth/register`                 | ❌   | Créer un admin                |
+| GET              | `/api/auth/me`                       | ✅   | Profil connecté               |
+| PATCH            | `/api/auth/change-password`          | ✅   | Modifier MDP                  |
+| GET              | `/api/dashboard`                     | ✅   | Stats globales                |
+| GET              | `/api/dashboard/revenue-vs-expenses` | ✅   | Évolution mensuelle           |
+| GET/POST         | `/api/clients`                       | ✅   | Liste / Créer                 |
+| GET/PATCH/DELETE | `/api/clients/:id`                   | ✅   | Détail / Modifier / Supprimer |
+| GET/POST         | `/api/products`                      | ✅   | Liste / Créer                 |
+| GET              | `/api/products/low-stock`            | ✅   | Produits en stock faible      |
+| PATCH            | `/api/products/:id/stock`            | ✅   | Ajuster stock (+/-)           |
+| GET/POST         | `/api/invoices`                      | ✅   | Liste / Créer                 |
+| PATCH            | `/api/invoices/:id/mark-as-paid`     | ✅   | Marquer payée                 |
+| GET/POST         | `/api/expenses`                      | ✅   | Liste / Créer                 |
+| GET              | `/api/expenses/by-category`          | ✅   | Totaux par catégorie          |
+| GET              | `/api/health`                        | ❌   | Santé API + DB                |

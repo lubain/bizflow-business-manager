@@ -4,7 +4,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User } from '../../users/entities/user.entity';
+import { Admin } from '../entities/admin.entity';
 
 export interface JwtPayload {
   sub: number;
@@ -16,8 +16,8 @@ export interface JwtPayload {
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     private configService: ConfigService,
-    @InjectRepository(User)
-    private userRepository: Repository<User>,
+    @InjectRepository(Admin)
+    private adminRepository: Repository<Admin>,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -27,14 +27,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload) {
-    const user = await this.userRepository.findOne({
+    const admin = await this.adminRepository.findOne({
       where: { id: payload.sub, isActive: true },
     });
-
-    if (!user) {
-      throw new UnauthorizedException('Token invalide ou utilisateur inactif');
+    if (!admin) {
+      throw new UnauthorizedException('Token invalide ou compte inactif');
     }
-
-    return user;
+    return admin;
   }
 }

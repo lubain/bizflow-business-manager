@@ -3,7 +3,7 @@ import { AppModule } from '../app.module';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { User, UserRole } from '../modules/users/entities/user.entity';
+import { Admin } from '../modules/auth/entities/admin.entity';
 import { Client } from '../modules/clients/entities/client.entity';
 import { Product } from '../modules/products/entities/product.entity';
 import { Expense } from '../modules/expenses/entities/expense.entity';
@@ -16,7 +16,7 @@ import { InvoiceItem } from '../modules/invoices/entities/invoice-item.entity';
 async function seed() {
   const app = await NestFactory.createApplicationContext(AppModule);
 
-  const userRepo = app.get<Repository<User>>(getRepositoryToken(User));
+  const adminRepo = app.get<Repository<Admin>>(getRepositoryToken(Admin));
   const clientRepo = app.get<Repository<Client>>(getRepositoryToken(Client));
   const productRepo = app.get<Repository<Product>>(getRepositoryToken(Product));
   const expenseRepo = app.get<Repository<Expense>>(getRepositoryToken(Expense));
@@ -27,25 +27,25 @@ async function seed() {
 
   console.log('🌱 Initialisation des données de démonstration...\n');
 
-  // ── Utilisateur admin ──────────────────────────────────
-  const existingUser = await userRepo.findOne({
+  // Admin
+  const existingAdmin = await adminRepo.findOne({
     where: { email: 'admin@example.com' },
   });
-  if (!existingUser) {
-    const admin = userRepo.create({
-      nom: 'Admin',
-      prenom: 'Système',
-      email: 'admin@example.com',
-      password: await bcrypt.hash('admin123', 10),
-      role: UserRole.ADMIN,
-    });
-    await userRepo.save(admin);
-    console.log('✅ Utilisateur admin créé  →  admin@example.com / admin123');
+  if (!existingAdmin) {
+    await adminRepo.save(
+      adminRepo.create({
+        nom: 'Admin',
+        prenom: 'Système',
+        email: 'admin@example.com',
+        password: await bcrypt.hash('admin123', 10),
+      }),
+    );
+    console.log('✅ Admin créé  →  admin@example.com / admin123');
   } else {
-    console.log('ℹ️  Utilisateur admin déjà existant');
+    console.log('ℹ️  Admin déjà existant');
   }
 
-  // ── Clients ────────────────────────────────────────────
+  // Clients
   const clientsData = [
     {
       name: 'Société Ravinala',
@@ -69,16 +69,11 @@ async function seed() {
   const clients: Client[] = [];
   for (const data of clientsData) {
     const existing = await clientRepo.findOne({ where: { email: data.email } });
-    if (!existing) {
-      const c = await clientRepo.save(clientRepo.create(data));
-      clients.push(c);
-    } else {
-      clients.push(existing);
-    }
+    clients.push(existing ?? (await clientRepo.save(clientRepo.create(data))));
   }
   console.log(`✅ ${clients.length} clients chargés`);
 
-  // ── Produits ───────────────────────────────────────────
+  // Products
   const productsData = [
     {
       name: 'Ordinateur portable Dell',
@@ -95,16 +90,13 @@ async function seed() {
   const products: Product[] = [];
   for (const data of productsData) {
     const existing = await productRepo.findOne({ where: { name: data.name } });
-    if (!existing) {
-      const p = await productRepo.save(productRepo.create(data));
-      products.push(p);
-    } else {
-      products.push(existing);
-    }
+    products.push(
+      existing ?? (await productRepo.save(productRepo.create(data))),
+    );
   }
   console.log(`✅ ${products.length} produits chargés`);
 
-  // ── Dépenses ───────────────────────────────────────────
+  // Expenses
   const expensesData = [
     {
       description: 'Loyer bureau janvier',
@@ -137,18 +129,6 @@ async function seed() {
       category: 'Charges',
     },
     {
-      description: 'Déplacement client Tamatave',
-      amount: 180_000,
-      date: '2024-02-20',
-      category: 'Transport',
-    },
-    {
-      description: 'Loyer bureau mars',
-      amount: 500_000,
-      date: '2024-03-05',
-      category: 'Loyer',
-    },
-    {
       description: 'Maintenance informatique',
       amount: 250_000,
       date: '2024-03-12',
@@ -158,7 +138,7 @@ async function seed() {
   let expenseCount = 0;
   for (const data of expensesData) {
     const existing = await expenseRepo.findOne({
-      where: { description: data.description, date: data.date },
+      where: { description: data.description },
     });
     if (!existing) {
       await expenseRepo.save(expenseRepo.create(data));
@@ -167,9 +147,9 @@ async function seed() {
   }
   console.log(`✅ ${expenseCount} dépenses chargées`);
 
-  // ── Factures ───────────────────────────────────────────
+  // Invoices
   const invoiceCount = await invoiceRepo.count();
-  if (invoiceCount === 0 && clients.length > 0 && products.length > 0) {
+  if (invoiceCount === 0 && clients.length > 0 && products.length >= 2) {
     const inv1 = invoiceRepo.create({
       clientId: clients[0].id,
       clientName: clients[0].name,
@@ -221,31 +201,7 @@ async function seed() {
     ];
     await invoiceRepo.save(inv2);
 
-    const inv3 = invoiceRepo.create({
-      clientId: clients[2].id,
-      clientName: clients[2].name,
-      issueDate: '2024-01-10',
-      dueDate: '2024-01-25',
-      subtotal: 780_000,
-      taxRate: 20,
-      taxAmount: 156_000,
-      total: 936_000,
-      status: InvoiceStatus.LATE,
-    });
-    inv3.items = [
-      itemRepo.create({
-        productId: products[5].id,
-        productName: products[5].name,
-        quantity: 1,
-        unitPrice: 780_000,
-        total: 780_000,
-      }),
-    ];
-    await invoiceRepo.save(inv3);
-
-    console.log('✅ 3 factures de démonstration créées');
-  } else {
-    console.log('ℹ️  Factures déjà existantes, seed ignoré');
+    console.log('✅ 2 factures de démonstration créées');
   }
 
   console.log('\n✨ Seed terminé avec succès !');
