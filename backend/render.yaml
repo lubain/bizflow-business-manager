@@ -23,3 +23,27 @@ services:
         sync: false # Ex: https://votre-app.vercel.app
       - key: SWAGGER_ENABLED
         value: 'true' # Mettre 'false' pour désactiver Swagger en prod
+
+services:
+  - type: web
+    name: gestion-entreprises-api
+    runtime: node
+    region: frankfurt
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start:prod
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false # Saisir manuellement : URL de connexion Supabase (mode URI)
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: CORS_ORIGIN
+        sync: false # Ex: https://votre-app.vercel.app
+      - key: SWAGGER_ENABLED
+        value: 'true' # Mettre 'false' pour désactiver Swagger en prod

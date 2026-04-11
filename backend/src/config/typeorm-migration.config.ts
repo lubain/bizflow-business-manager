@@ -16,6 +16,7 @@ import { Expense } from '../modules/expenses/entities/expense.entity';
 
 dotenv.config();
 
+const isProduction = process.env.NODE_ENV === 'production';
 const dbUrl = process.env.DATABASE_URL;
 
 export const AppDataSource = new DataSource(
@@ -23,7 +24,7 @@ export const AppDataSource = new DataSource(
     ? {
         type: 'postgres',
         url: dbUrl,
-        ssl: { rejectUnauthorized: false },
+        ssl: isProduction ? { rejectUnauthorized: false } : false,
         entities: [Admin, Client, Product, Invoice, InvoiceItem, Expense],
         migrations: ['src/database/migrations/*.ts'],
         synchronize: false,
