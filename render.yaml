@@ -2,6 +2,7 @@ services:
   - type: web
     name: gestion-entreprises-api
     runtime: node
+    rootDir: backend
     region: frankfurt
     plan: free
     buildCommand: npm ci --include=dev && npm run build
@@ -12,14 +13,14 @@ services:
       - key: NODE_ENV
         value: production
       - key: NPM_CONFIG_PRODUCTION
-        value: 'false'
+        value: "false"
       - key: DATABASE_URL
-        sync: false # Saisir manuellement : URL de connexion Supabase (mode URI)
+        sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_EXPIRES_IN
         value: 7d
       - key: CORS_ORIGIN
-        sync: false # Ex: https://votre-app.vercel.app
+        sync: false
       - key: SWAGGER_ENABLED
-        value: 'true' # Mettre 'false' pour désactiver Swagger en prod
+        value: "true"
