@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   FileText,
@@ -7,127 +7,264 @@ import {
   Users,
   TrendingDown,
   Menu,
-  X,
   LogOut,
   Moon,
   Sun,
+  X,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { AdminRoutesNavigations } from "@/shared/constants/AppRoutesNavigation";
 import ToastContainer from "../common/toast/Toast";
-import { useSettings } from "@/presentation/hooks/useSettings";
 
-const NAV_ITEMS = [
+const NAV = [
   {
     path: AdminRoutesNavigations.DASHBOARD,
     label: "Tableau de bord",
     icon: LayoutDashboard,
+    color: "text-blue-400",
   },
   {
     path: AdminRoutesNavigations.INVOICES,
     label: "Facturation",
     icon: FileText,
+    color: "text-violet-400",
   },
-  { path: AdminRoutesNavigations.STOCK, label: "Stock", icon: Package },
-  { path: AdminRoutesNavigations.CLIENTS, label: "Clients", icon: Users },
+  {
+    path: AdminRoutesNavigations.STOCK,
+    label: "Stock",
+    icon: Package,
+    color: "text-emerald-400",
+  },
+  {
+    path: AdminRoutesNavigations.CLIENTS,
+    label: "Clients",
+    icon: Users,
+    color: "text-amber-400",
+  },
   {
     path: AdminRoutesNavigations.EXPENSE,
     label: "Dépenses",
     icon: TrendingDown,
+    color: "text-rose-400",
   },
 ];
 
+const PAGE_TITLES: Record<string, string> = {
+  [AdminRoutesNavigations.DASHBOARD]: "Tableau de bord",
+  [AdminRoutesNavigations.INVOICES]: "Facturation",
+  [AdminRoutesNavigations.STOCK]: "Gestion de Stock",
+  [AdminRoutesNavigations.CLIENTS]: "Clients",
+  [AdminRoutesNavigations.EXPENSE]: "Dépenses",
+};
+
+const SIDEBAR_W_OPEN = 240; // px — w-60
+const SIDEBAR_W_CLOSED = 68; // px — w-[68px]
+
 export default function BaseLayout() {
   const [open, setOpen] = useState(true);
-  const { settings, setSettings } = useSettings();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [dark, setDark] = useState(
+    () => localStorage.getItem("theme") === "dark",
+  );
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const handleLogout = () => {
-    logout();
-    navigate("/");
+  // Auto-collapse on small screens
+  useEffect(() => {
+    const check = () => {
+      if (window.innerWidth < 768) setOpen(false);
+    };
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", dark);
+    localStorage.setItem("theme", dark ? "dark" : "light");
+  }, [dark]);
+
+  // Close mobile drawer on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
+
+  const currentPage = PAGE_TITLES[location.pathname.replace("/", "")] ?? "";
+  const initials = user
+    ? `${user.nom.charAt(0)}${user.prenom.charAt(0)}`.toUpperCase()
+    : "A";
+  const sidebarW = open ? SIDEBAR_W_OPEN : SIDEBAR_W_CLOSED;
+
+  /* ── Sidebar inner content (shared desktop + mobile) ── */
+  const SidebarInner = ({ forceFull = false }: { forceFull?: boolean }) => {
+    const showLabel = open || forceFull;
+    return (
+      <div className="flex flex-col h-full">
+        {/* Brand */}
+        <div
+          className={`flex items-center gap-3 px-4 h-16 border-b border-white/5 shrink-0 ${!showLabel ? "justify-center" : ""}`}
+        >
+          <div className="h-8 w-8 shrink-0 gradient-blue rounded-xl flex items-center justify-center shadow-lg">
+            <span className="text-white font-black text-sm">{initials}</span>
+          </div>
+          {showLabel && (
+            <div className="animate-fade-in min-w-0">
+              <p className="text-white text-xs font-semibold truncate">
+                {user.nom} {user.prenom}
+              </p>
+              <p className="text-slate-400 text-xs truncate">{user.email}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Nav links */}
+        <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-0.5">
+          {NAV.map(({ path, label, icon: Icon, color }, i) => (
+            <NavLink
+              key={path}
+              to={`/${path}`}
+              style={{ animationDelay: `${i * 0.04}s` }}
+              className={({ isActive }) =>
+                [
+                  "flex items-center gap-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group animate-slide-right",
+                  showLabel ? "px-3" : "px-0 justify-center",
+                  isActive
+                    ? "bg-white/10 text-white"
+                    : "text-slate-400 hover:bg-white/5 hover:text-slate-200",
+                ].join(" ")
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <div
+                    className={[
+                      "flex items-center justify-center h-8 w-8 rounded-lg shrink-0 transition-colors",
+                      isActive ? "bg-white/10" : "group-hover:bg-white/5",
+                    ].join(" ")}
+                  >
+                    <Icon
+                      size={17}
+                      className={isActive ? "text-white" : color}
+                    />
+                  </div>
+                  {showLabel && (
+                    <span className="flex-1 truncate">{label}</span>
+                  )}
+                  {showLabel && isActive && (
+                    <div className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+                  )}
+                </>
+              )}
+            </NavLink>
+          ))}
+        </nav>
+
+        {/* Footer */}
+        <div className="border-t border-white/5 p-3 space-y-1 shrink-0">
+          {/* Logout */}
+          <button
+            onClick={() => {
+              logout();
+              navigate("/");
+            }}
+            className={[
+              "flex items-center gap-3 w-full py-2.5 rounded-xl text-rose-400 hover:bg-rose-500/10 transition-all text-sm",
+              showLabel ? "px-3" : "px-0 justify-center",
+            ].join(" ")}
+          >
+            <div className="h-8 w-8 rounded-lg bg-rose-500/10 flex items-center justify-center shrink-0">
+              <LogOut size={16} />
+            </div>
+            {showLabel && <span>Déconnexion</span>}
+          </button>
+        </div>
+      </div>
+    );
   };
 
-  const sidebarW = open ? "w-60" : "w-16";
-
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
-      {/* ── Header — fixed, always full width, never shifted ── */}
-      <header className="fixed top-0 left-0 right-0 h-14 z-30 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-4 gap-4">
-        <div className="flex items-center gap-2">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+      {/* ── Desktop Sidebar — fixed, width driven by inline style ── */}
+      <aside
+        className="hidden md:block gradient-sidebar fixed top-0 left-0 bottom-0 z-30 overflow-hidden transition-all duration-300"
+        style={{ width: sidebarW }}
+      >
+        <SidebarInner />
+      </aside>
+
+      {/* ── Mobile overlay drawer ── */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setMobileOpen(false)}
+          />
+          <aside className="absolute left-0 top-0 bottom-0 w-64 gradient-sidebar animate-slide-right">
+            <button
+              onClick={() => setMobileOpen(false)}
+              className="absolute top-4 right-3 text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors z-10"
+            >
+              <X size={18} />
+            </button>
+            <SidebarInner forceFull />
+          </aside>
+        </div>
+      )}
+
+      {/* ── Main wrapper — margin-left mirrors sidebar width ── */}
+      <div
+        className="flex flex-col min-h-screen transition-all duration-300"
+        style={{
+          marginLeft:
+            typeof window !== "undefined" && window.innerWidth >= 768
+              ? sidebarW
+              : 0,
+        }}
+      >
+        {/* Header — sticky, full width of the content area */}
+        <header className="sticky top-0 z-20 h-16 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-100 dark:border-slate-800 flex items-center px-4 md:px-6 gap-3 shrink-0">
+          {/* Mobile hamburger */}
+          <button
+            onClick={() => setMobileOpen(true)}
+            className="md:hidden p-2 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            aria-label="Ouvrir le menu"
+          >
+            <Menu size={20} />
+          </button>
+
+          {/* Desktop toggle — plier/déplier */}
           <button
             onClick={() => setOpen((v) => !v)}
-            className="cursor-pointer p-2 rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+            className="hidden md:flex items-center justify-center p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-white transition-all"
+            aria-label={open ? "Replier le menu" : "Déplier le menu"}
+            title={open ? "Replier" : "Déplier"}
           >
-            {open ? <Menu size={20} /> : <X size={20} />}
+            <Menu size={18} />
           </button>
-          <span className="text-slate-400 text-sm dark:text-slate-300">
-            Bienvenue,{" "}
-            <span className="font-semibold text-slate-700 dark:text-white">
-              {user?.nom} {user?.prenom}
-            </span>
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            aria-label="Light theme"
-            onClick={() =>
-              setSettings((s) => ({
-                ...s,
-                theme: s.theme === "light" ? "dark" : "light",
-              }))
-            }
-            className="cursor-pointer p-2 rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-          >
-            {settings.theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
-        </div>
-      </header>
 
-      {/* ── Body below header ── */}
-      <div className="flex pt-14 h-screen">
-        {/* Sidebar */}
-        <aside
-          className={`fixed top-14 left-0 bottom-0 z-20 flex flex-col bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white transition-all duration-300 ${sidebarW}`}
-        >
-          {/* Nav */}
-          <nav className="flex-1 py-4 overflow-y-auto">
-            {NAV_ITEMS.map(({ path, label, icon: Icon }) => (
-              <NavLink
-                key={path}
-                to={`/${path}`}
-                className={({ isActive }) =>
-                  `flex items-center gap-4 px-4 py-3 mx-2 rounded-lg overflow-hidden transition-colors text-sm font-medium ${
-                    isActive
-                      ? "bg-blue-100 dark:bg-blue-600 dark:text-white shadow-sm"
-                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white"
-                  }`
-                }
-              >
-                <Icon size={18} className="shrink-0" />
-                <span className="min-w-0 whitespace-nowrap">{label}</span>
-              </NavLink>
-            ))}
-          </nav>
+          {/* Page title */}
+          <h1 className="flex-1 text-base font-bold text-slate-800 dark:text-white truncate">
+            {currentPage}
+          </h1>
 
-          {/* Footer */}
-          <div className="border-t border-slate-200 dark:border-slate-700 overflow-hidden">
+          <div className="h-8 w-8 gradient-blue rounded-full flex items-center justify-center text-white text-xs font-bold shadow-sm shrink-0">
+            {/* Dark mode */}
             <button
-              onClick={handleLogout}
-              className="w-full flex items-center gap-5 px-4 py-3 mx-2 rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/30 dark:hover:text-red-300 transition-colors text-sm"
+              onClick={() => setDark((d) => !d)}
+              className={[
+                "flex items-center gap-3 w-full py-2.5 rounded-xl transition-all text-sm",
+              ].join(" ")}
             >
-              <LogOut size={18} className="shrink-0" />
-              <span className="min-w-0 whitespace-nowrap">Déconnexion</span>
+              <div className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0">
+                {dark ? <Sun size={16} /> : <Moon size={16} />}
+              </div>
             </button>
           </div>
-        </aside>
+        </header>
 
-        {/* Main content — offset by sidebar width */}
-        <main
-          className={`flex-1 overflow-y-auto p-6 transition-all duration-300 ${
-            open ? "ml-60" : "ml-16"
-          }`}
-        >
+        {/* Page content */}
+        <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-x-hidden">
           <Outlet />
         </main>
       </div>
