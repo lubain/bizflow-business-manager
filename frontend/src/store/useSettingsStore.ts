@@ -11,7 +11,9 @@ const DEFAULT_SETTINGS: AppSettings = {
 interface SettingsState {
   settings: AppSettings;
   setSettings: (
-    update: Partial<AppSettings> | ((prev: AppSettings) => Partial<AppSettings>)
+    update:
+      | Partial<AppSettings>
+      | ((prev: AppSettings) => Partial<AppSettings>),
   ) => void;
 }
 
@@ -27,6 +29,6 @@ export const useSettingsStore = create<SettingsState>()(
           },
         })),
     }),
-    { name: SETTINGS_KEY }
-  )
+    { name: SETTINGS_KEY },
+  ),
 );

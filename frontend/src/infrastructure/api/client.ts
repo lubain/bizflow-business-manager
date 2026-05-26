@@ -6,7 +6,7 @@ function getToken(): string | null {
 
 async function request<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<T> {
   const token = getToken();
   const headers: HeadersInit = {

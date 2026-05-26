@@ -19,7 +19,7 @@ export const useInvoiceState = () => {
   const [currentProduct, setCurrentProduct] = useState<number | null>(null);
   const [qty, setQty] = useState(1);
   const [issueDate, setIssueDate] = useState(
-    new Date().toISOString().split("T")[0]
+    new Date().toISOString().split("T")[0],
   );
   const [dueDate, setDueDate] = useState(() => {
     const d = new Date();
@@ -55,7 +55,7 @@ export const useInvoiceState = () => {
                 quantity: i.quantity + qty,
                 total: (i.quantity + qty) * i.unitPrice,
               }
-            : i
+            : i,
         );
       }
       return [

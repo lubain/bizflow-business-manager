@@ -17,11 +17,11 @@ export const useDashboardView = () => {
 
   const totalExpenses = expenses.reduce(
     (acc: number, exp: Expense) => acc + Number(exp.amount),
-    0
+    0,
   );
 
   const lowStockItems = products.filter(
-    (p: Product) => Number(p.stock) <= Number(p.minStock)
+    (p: Product) => Number(p.stock) <= Number(p.minStock),
   );
 
   useEffect(() => {
