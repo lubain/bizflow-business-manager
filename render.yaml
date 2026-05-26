@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: gestion-entreprises-api
+    name: small-business-manager-api
     runtime: node
     rootDir: backend
     region: frankfurt
