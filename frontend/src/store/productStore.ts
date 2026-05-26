@@ -66,7 +66,7 @@ export const useProductStore = create<ProductState>((set) => ({
           const existing = current.find((p) => p.id === item.id);
           const delta = existing ? item.newStock - Number(existing.stock) : 0;
           return api.patch(`/products/${item.id}/stock`, { quantity: delta });
-        })
+        }),
       );
       const refreshed = await api.get<Product[]>("/products");
       set({ products: refreshed });
