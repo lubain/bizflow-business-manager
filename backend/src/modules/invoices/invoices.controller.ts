@@ -43,7 +43,7 @@ export class InvoicesController {
 
   @Get('client/:clientId')
   @ApiParam({ name: 'clientId', type: Number })
-  @ApiOperation({ summary: 'Factures d\'un client' })
+  @ApiOperation({ summary: "Factures d'un client" })
   findByClient(@Param('clientId', ParseIntPipe) clientId: number) {
     return this.invoicesService.findByClient(clientId);
   }

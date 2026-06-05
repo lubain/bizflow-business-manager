@@ -53,7 +53,10 @@ export class InvoicesService {
     return this.invoiceRepository.save(invoice);
   }
 
-  async update(id: number, updateInvoiceDto: UpdateInvoiceDto): Promise<Invoice> {
+  async update(
+    id: number,
+    updateInvoiceDto: UpdateInvoiceDto,
+  ): Promise<Invoice> {
     const invoice = await this.findOne(id);
     const { items, ...invoiceData } = updateInvoiceDto;
 
