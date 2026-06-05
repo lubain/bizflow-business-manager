@@ -17,18 +17,13 @@ export class DashboardController {
 
   @Get()
   @ApiOperation({ summary: 'Statistiques globales du tableau de bord' })
-  @ApiResponse({
-    status: 200,
-    description: 'Chiffres clés, revenus, dépenses, stock...',
-  })
+  @ApiResponse({ status: 200, description: 'Chiffres clés, revenus, dépenses, stock...' })
   getStats() {
     return this.dashboardService.getStats();
   }
 
   @Get('revenue-vs-expenses')
-  @ApiOperation({
-    summary: 'Comparaison mensuelle revenus / dépenses / profit',
-  })
+  @ApiOperation({ summary: 'Comparaison mensuelle revenus / dépenses / profit' })
   getRevenueVsExpenses() {
     return this.dashboardService.getRevenueVsExpenses();
   }
