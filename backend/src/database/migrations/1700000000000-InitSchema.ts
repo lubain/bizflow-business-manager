@@ -52,7 +52,7 @@ export class InitSchema1700000000000 implements MigrationInterface {
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "invoices" (
         "id"           SERIAL PRIMARY KEY,
-        "client_id"    INTEGER NOT NULL REFERENCES "clients"("id") ON DELETE RESTRICT,
+        "client_id"    INTEGER NOT NULL REFERENCES "clients"("id") ON DELETE SET NULL,
         "client_name"  VARCHAR NOT NULL,
         "issue_date"   DATE NOT NULL,
         "due_date"     DATE NOT NULL,
