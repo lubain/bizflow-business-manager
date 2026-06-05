@@ -105,7 +105,7 @@ DATABASE_URL="postgresql://..." npm run seed
 | `CORS_ORIGIN`     | `https://votre-app.vercel.app`      |
 | `SWAGGER_ENABLED` | `true`                              |
 
-5. Récupérer l'URL du service (ex: `https://small-business-manager-api.onrender.com`)
+5. Récupérer l'URL du service (ex: `https://gestion-entreprises-api.onrender.com`)
 
 > ⚠️ Le plan **Free** de Render met le service en veille après 15 min d'inactivité.
 > Le premier appel peut prendre 30–60 secondes.
@@ -119,9 +119,9 @@ DATABASE_URL="postgresql://..." npm run seed
 2. **New Project → Import GitHub** (dossier frontend)
 3. **Environment Variables** :
 
-| Variable       | Valeur                                                |
-| -------------- | ----------------------------------------------------- |
-| `VITE_API_URL` | `https://small-business-manager-api.onrender.com/api` |
+| Variable       | Valeur                                             |
+| -------------- | -------------------------------------------------- |
+| `VITE_API_URL` | `https://gestion-entreprises-api.onrender.com/api` |
 
 4. Framework preset : **Vite**
 5. Le fichier `vercel.json` gère les redirections SPA automatiquement
