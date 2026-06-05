@@ -20,7 +20,9 @@ export class AuthService {
   ) {}
 
   async validateAdmin(email: string, password: string): Promise<Admin | null> {
-    const admin = await this.adminRepository.findOne({ where: { email, isActive: true } });
+    const admin = await this.adminRepository.findOne({
+      where: { email, isActive: true },
+    });
     if (!admin) return null;
     const isMatch = await bcrypt.compare(password, admin.password);
     if (!isMatch) return null;
@@ -40,7 +42,9 @@ export class AuthService {
       where: { email: registerDto.email },
     });
     if (exists) {
-      throw new ConflictException('Un administrateur avec cet email existe déjà');
+      throw new ConflictException(
+        'Un administrateur avec cet email existe déjà',
+      );
     }
     const hashedPassword = await bcrypt.hash(registerDto.password, 10);
     const admin = this.adminRepository.create({
@@ -52,14 +56,22 @@ export class AuthService {
   }
 
   async getProfile(adminId: number) {
-    const admin = await this.adminRepository.findOne({ where: { id: adminId } });
+    const admin = await this.adminRepository.findOne({
+      where: { id: adminId },
+    });
     if (!admin) throw new UnauthorizedException('Administrateur introuvable');
     const { password, ...result } = admin;
     return result;
   }
 
-  async changePassword(adminId: number, currentPassword: string, newPassword: string) {
-    const admin = await this.adminRepository.findOne({ where: { id: adminId } });
+  async changePassword(
+    adminId: number,
+    currentPassword: string,
+    newPassword: string,
+  ) {
+    const admin = await this.adminRepository.findOne({
+      where: { id: adminId },
+    });
     if (!admin) throw new UnauthorizedException();
     const isValid = await bcrypt.compare(currentPassword, admin.password);
     if (!isValid) {

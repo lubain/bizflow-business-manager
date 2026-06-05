@@ -28,14 +28,17 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Connexion utilisateur' })
-  @ApiResponse({ status: 200, description: 'Connexion réussie, retourne le token JWT' })
+  @ApiResponse({
+    status: 200,
+    description: 'Connexion réussie, retourne le token JWT',
+  })
   @ApiResponse({ status: 401, description: 'Email ou mot de passe incorrect' })
   login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
   }
 
   @Post('register')
-  @ApiOperation({ summary: 'Inscription d\'un nouvel utilisateur' })
+  @ApiOperation({ summary: "Inscription d'un nouvel utilisateur" })
   @ApiResponse({ status: 201, description: 'Utilisateur créé avec succès' })
   @ApiResponse({ status: 409, description: 'Email déjà utilisé' })
   register(@Body() registerDto: RegisterDto) {
@@ -45,7 +48,7 @@ export class AuthController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Récupérer le profil de l\'utilisateur connecté' })
+  @ApiOperation({ summary: "Récupérer le profil de l'utilisateur connecté" })
   getProfile(@Request() req) {
     return this.authService.getProfile(req.user.id);
   }
