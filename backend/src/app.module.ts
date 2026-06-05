@@ -40,33 +40,36 @@ const ENTITIES = [Admin, Client, Product, Invoice, InvoiceItem, Expense];
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (cfg: ConfigService) => {
+        const isProd = process.env.NODE_ENV === 'production';
         const dbUrl = cfg.get<string>('database.url');
-        const useUrlConnection = Boolean(dbUrl);
 
-        // Toute connexion par URL est traitée comme une connexion distante
-        // (ex: Supabase) : SSL actif et pas de synchronize.
-        if (useUrlConnection && dbUrl) {
+        // Production (Supabase) : connexion via URL
+        if (isProd && dbUrl) {
           return {
             type: 'postgres',
             url: dbUrl,
             ssl: { rejectUnauthorized: false },
             entities: ENTITIES,
-            synchronize: false,
+            synchronize: false,   // migrations en prod
             logging: false,
           };
         }
 
-        // Développement local : fallback host/port uniquement
+        // Développement local : fallback host/port ou URL
         return {
           type: 'postgres',
-          host: cfg.get<string>('database.host'),
-          port: cfg.get<number>('database.port'),
-          username: cfg.get<string>('database.username'),
-          password: cfg.get<string>('database.password'),
-          database: cfg.get<string>('database.name'),
+          ...(dbUrl
+            ? { url: dbUrl }
+            : {
+                host: cfg.get<string>('database.host'),
+                port: cfg.get<number>('database.port'),
+                username: cfg.get<string>('database.username'),
+                password: cfg.get<string>('database.password'),
+                database: cfg.get<string>('database.name'),
+              }),
           ssl: false,
           entities: ENTITIES,
-          synchronize: true, // auto-sync en dev uniquement
+          synchronize: true,   // auto-sync en dev uniquement
           logging: true,
         };
       },
