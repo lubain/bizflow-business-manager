@@ -1,80 +1,48 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { api } from "@/infrastructure/api/client";
-
-export interface AuthUser {
-  id: number;
-  nom: string;
-  prenom: string;
-  email: string;
-  role: string;
-}
+import { User } from "../types";
 
 interface AuthState {
-  user: AuthUser | null;
-  token: string | null;
-  loading: boolean;
-  error: string | null;
+  user: User | null;
+  accessToken: string | null;
+  refreshToken: string | null;
+  isAuthenticated: boolean;
 
-  login: (email: string, password: string) => Promise<void>;
+  setAuth: (user: User, accessToken: string, refreshToken: string) => void;
+  setTokens: (accessToken: string, refreshToken: string) => void;
   logout: () => void;
-  register: (
-    nom: string,
-    prenom: string,
-    email: string,
-    password: string,
-  ) => Promise<void>;
-  clearError: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       user: null,
-      token: null,
-      loading: false,
-      error: null,
+      accessToken: null,
+      refreshToken: null,
+      isAuthenticated: false,
 
-      login: async (email, password) => {
-        set({ loading: true, error: null });
-        try {
-          const data = await api.post<{ access_token: string; user: AuthUser }>(
-            "/auth/login",
-            { email, password },
-          );
-          localStorage.setItem("access_token", data.access_token);
-          set({ user: data.user, token: data.access_token, loading: false });
-        } catch (err: any) {
-          set({ error: err.message, loading: false });
-          throw err;
-        }
-      },
+      setAuth: (user, accessToken, refreshToken) =>
+        set({ user, accessToken, refreshToken, isAuthenticated: true }),
 
-      register: async (nom, prenom, email, password) => {
-        set({ loading: true, error: null });
-        try {
-          const data = await api.post<{ access_token: string; user: AuthUser }>(
-            "/auth/register",
-            { nom, prenom, email, password },
-          );
-          localStorage.setItem("access_token", data.access_token);
-          set({ user: data.user, token: data.access_token, loading: false });
-        } catch (err) {
-          set({ error: err.message, loading: false });
-          throw err;
-        }
-      },
+      setTokens: (accessToken, refreshToken) =>
+        set({ accessToken, refreshToken }),
 
-      logout: () => {
-        localStorage.removeItem("access_token");
-        set({ user: null, token: null });
-      },
-
-      clearError: () => set({ error: null }),
+      logout: () =>
+        set({
+          user: null,
+          accessToken: null,
+          refreshToken: null,
+          isAuthenticated: false,
+        }),
     }),
     {
-      name: "auth-storage",
-      partialize: (state) => ({ user: state.user, token: state.token }),
+      name: "bizflow-auth",
+      partialize: (state) => ({
+        user: state.user,
+        accessToken: state.accessToken,
+        refreshToken: state.refreshToken,
+        isAuthenticated: state.isAuthenticated,
+      }),
     },
   ),
 );
