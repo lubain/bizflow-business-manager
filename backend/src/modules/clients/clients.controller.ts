@@ -2,76 +2,58 @@ import {
   Controller,
   Get,
   Post,
-  Body,
   Patch,
-  Param,
   Delete,
-  ParseIntPipe,
+  Param,
+  Body,
+  Query,
   UseGuards,
+  Request,
+  ParseUUIDPipe,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiParam,
-} from '@nestjs/swagger';
-import { ClientsService } from './clients.service';
-import { CreateClientDto, UpdateClientDto } from './dto/client.dto';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { ClientsService } from './clients.service';
+import { CreateClientDto } from './dto/create-client.dto';
+import { UpdateClientDto } from './dto/update-client.dto';
+import { ClientQueryDto } from './dto/client-query.dto';
 
-@ApiTags('Clients')
+@ApiTags('clients')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('clients')
 export class ClientsController {
   constructor(private readonly clientsService: ClientsService) {}
 
+  @Post()
+  create(@Body() dto: CreateClientDto, @Request() req: any) {
+    return this.clientsService.create(dto, req.user.id);
+  }
+
   @Get()
-  @ApiOperation({ summary: 'Lister tous les clients' })
-  @ApiResponse({ status: 200, description: 'Liste des clients' })
-  findAll() {
-    return this.clientsService.findAll();
+  findAll(@Query() query: ClientQueryDto, @Request() req: any) {
+    return this.clientsService.findAll(query, req.user.id);
   }
 
   @Get(':id')
-  @ApiParam({ name: 'id', type: Number })
-  @ApiOperation({ summary: 'Récupérer un client par ID' })
-  @ApiResponse({ status: 200, description: 'Client trouvé' })
-  @ApiResponse({ status: 404, description: 'Client introuvable' })
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.clientsService.findOne(id);
-  }
-
-  @Post()
-  @ApiOperation({ summary: 'Créer un client' })
-  @ApiResponse({ status: 201, description: 'Client créé avec succès' })
-  @ApiResponse({ status: 409, description: 'Email déjà utilisé' })
-  create(@Body() createClientDto: CreateClientDto) {
-    return this.clientsService.create(createClientDto);
+  findOne(@Param('id', ParseUUIDPipe) id: string, @Request() req: any) {
+    return this.clientsService.findOne(id, req.user.id);
   }
 
   @Patch(':id')
-  @ApiParam({ name: 'id', type: Number })
-  @ApiOperation({ summary: 'Modifier un client' })
-  @ApiResponse({ status: 200, description: 'Client modifié' })
-  @ApiResponse({ status: 404, description: 'Client introuvable' })
   update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateClientDto: UpdateClientDto,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateClientDto,
+    @Request() req: any,
   ) {
-    return this.clientsService.update(id, updateClientDto);
+    return this.clientsService.update(id, dto, req.user.id);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiParam({ name: 'id', type: Number })
-  @ApiOperation({ summary: 'Supprimer un client' })
-  @ApiResponse({ status: 204, description: 'Client supprimé' })
-  @ApiResponse({ status: 404, description: 'Client introuvable' })
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.clientsService.remove(id);
+  remove(@Param('id', ParseUUIDPipe) id: string, @Request() req: any) {
+    return this.clientsService.remove(id, req.user.id);
   }
 }
