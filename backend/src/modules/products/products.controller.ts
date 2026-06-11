@@ -2,93 +2,58 @@ import {
   Controller,
   Get,
   Post,
-  Body,
   Patch,
-  Param,
   Delete,
-  ParseIntPipe,
+  Param,
+  Body,
+  Query,
   UseGuards,
+  Request,
+  ParseUUIDPipe,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiParam,
-} from '@nestjs/swagger';
-import { ProductsService } from './products.service';
-import {
-  CreateProductDto,
-  UpdateProductDto,
-  UpdateStockDto,
-} from './dto/product.dto';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { ProductsService } from './products.service';
+import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
+import { ProductQueryDto } from './dto/product-query.dto';
 
-@ApiTags('Produits / Stock')
+@ApiTags('products')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('products')
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
-  @Get()
-  @ApiOperation({ summary: 'Lister tous les produits' })
-  findAll() {
-    return this.productsService.findAll();
+  @Post()
+  create(@Body() dto: CreateProductDto, @Request() req: any) {
+    return this.productsService.create(dto, req.user.id);
   }
 
-  @Get('low-stock')
-  @ApiOperation({ summary: 'Produits en rupture ou stock faible' })
-  findLowStock() {
-    return this.productsService.findLowStock();
+  @Get()
+  findAll(@Query() query: ProductQueryDto, @Request() req: any) {
+    return this.productsService.findAll(query, req.user.id);
   }
 
   @Get(':id')
-  @ApiParam({ name: 'id', type: Number })
-  @ApiOperation({ summary: 'Récupérer un produit par ID' })
-  @ApiResponse({ status: 404, description: 'Produit introuvable' })
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.productsService.findOne(id);
-  }
-
-  @Post()
-  @ApiOperation({ summary: 'Créer un produit' })
-  create(@Body() createProductDto: CreateProductDto) {
-    return this.productsService.create(createProductDto);
+  findOne(@Param('id', ParseUUIDPipe) id: string, @Request() req: any) {
+    return this.productsService.findOne(id, req.user.id);
   }
 
   @Patch(':id')
-  @ApiParam({ name: 'id', type: Number })
-  @ApiOperation({ summary: 'Modifier un produit' })
   update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateProductDto: UpdateProductDto,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateProductDto,
+    @Request() req: any,
   ) {
-    return this.productsService.update(id, updateProductDto);
-  }
-
-  @Patch(':id/stock')
-  @ApiParam({ name: 'id', type: Number })
-  @ApiOperation({
-    summary: 'Ajuster le stock (+/-)',
-    description:
-      'Fournir une quantité positive pour ajouter, négative pour retirer',
-  })
-  @ApiResponse({ status: 400, description: 'Stock insuffisant' })
-  updateStock(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateStockDto: UpdateStockDto,
-  ) {
-    return this.productsService.updateStock(id, updateStockDto);
+    return this.productsService.update(id, dto, req.user.id);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiParam({ name: 'id', type: Number })
-  @ApiOperation({ summary: 'Supprimer un produit' })
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.productsService.remove(id);
+  remove(@Param('id', ParseUUIDPipe) id: string, @Request() req: any) {
+    return this.productsService.remove(id, req.user.id);
   }
 }
