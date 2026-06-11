@@ -3,91 +3,81 @@ import {
   UnauthorizedException,
   ConflictException,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import * as bcrypt from 'bcrypt';
-import { Admin } from './entities/admin.entity';
-import { LoginDto } from './dto/login.dto';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { User } from './user.entity';
 import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
 
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectRepository(Admin)
-    private adminRepository: Repository<Admin>,
+    @InjectRepository(User) private userRepo: Repository<User>,
     private jwtService: JwtService,
+    private configService: ConfigService,
   ) {}
 
-  async validateAdmin(email: string, password: string): Promise<Admin | null> {
-    const admin = await this.adminRepository.findOne({
-      where: { email, isActive: true },
+  private generateTokens(user: User) {
+    const payload = { sub: user.id, email: user.email, role: user.role };
+
+    const accessToken = this.jwtService.sign(payload, {
+      secret: this.configService.get('JWT_SECRET'),
+      expiresIn: this.configService.get('JWT_EXPIRES_IN', '15m'),
     });
-    if (!admin) return null;
-    const isMatch = await bcrypt.compare(password, admin.password);
-    if (!isMatch) return null;
-    return admin;
+
+    const refreshToken = this.jwtService.sign(payload, {
+      secret: this.configService.get('JWT_REFRESH_SECRET'),
+      expiresIn: this.configService.get('JWT_REFRESH_EXPIRES_IN', '7d'),
+    });
+
+    return { accessToken, refreshToken };
   }
 
-  async login(loginDto: LoginDto) {
-    const admin = await this.validateAdmin(loginDto.email, loginDto.password);
-    if (!admin) {
+  private sanitizeUser(user: User) {
+    const { password, ...safe } = user as any;
+    return safe;
+  }
+
+  async register(dto: RegisterDto) {
+    const exists = await this.userRepo.findOne({ where: { email: dto.email } });
+    if (exists) throw new ConflictException('Cet email est déjà utilisé');
+
+    const user = this.userRepo.create(dto);
+    await this.userRepo.save(user);
+
+    const tokens = this.generateTokens(user);
+    return { ...tokens, user: this.sanitizeUser(user) };
+  }
+
+  async login(dto: LoginDto) {
+    const user = await this.userRepo.findOne({ where: { email: dto.email } });
+    if (!user || !(await user.validatePassword(dto.password))) {
       throw new UnauthorizedException('Email ou mot de passe incorrect');
     }
-    return this.buildAuthResponse(admin);
+    if (!user.isActive) throw new UnauthorizedException('Compte désactivé');
+
+    const tokens = this.generateTokens(user);
+    return { ...tokens, user: this.sanitizeUser(user) };
   }
 
-  async register(registerDto: RegisterDto) {
-    const exists = await this.adminRepository.findOne({
-      where: { email: registerDto.email },
-    });
-    if (exists) {
-      throw new ConflictException(
-        'Un administrateur avec cet email existe déjà',
-      );
+  async refresh(refreshToken: string) {
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: this.configService.get('JWT_REFRESH_SECRET'),
+      });
+      const user = await this.userRepo.findOne({ where: { id: payload.sub } });
+      if (!user) throw new UnauthorizedException();
+      return this.generateTokens(user);
+    } catch {
+      throw new UnauthorizedException('Token invalide ou expiré');
     }
-    const hashedPassword = await bcrypt.hash(registerDto.password, 10);
-    const admin = this.adminRepository.create({
-      ...registerDto,
-      password: hashedPassword,
-    });
-    await this.adminRepository.save(admin);
-    return this.buildAuthResponse(admin);
   }
 
-  async getProfile(adminId: number) {
-    const admin = await this.adminRepository.findOne({
-      where: { id: adminId },
-    });
-    if (!admin) throw new UnauthorizedException('Administrateur introuvable');
-    const { password, ...result } = admin;
-    return result;
-  }
-
-  async changePassword(
-    adminId: number,
-    currentPassword: string,
-    newPassword: string,
-  ) {
-    const admin = await this.adminRepository.findOne({
-      where: { id: adminId },
-    });
-    if (!admin) throw new UnauthorizedException();
-    const isValid = await bcrypt.compare(currentPassword, admin.password);
-    if (!isValid) {
-      throw new UnauthorizedException('Mot de passe actuel incorrect');
-    }
-    admin.password = await bcrypt.hash(newPassword, 10);
-    await this.adminRepository.save(admin);
-    return { message: 'Mot de passe modifié avec succès' };
-  }
-
-  private buildAuthResponse(admin: Admin) {
-    const payload = { sub: admin.id, email: admin.email, role: 'admin' };
-    const { password, ...adminWithoutPassword } = admin;
-    return {
-      access_token: this.jwtService.sign(payload),
-      user: adminWithoutPassword,
-    };
+  async getMe(userId: string) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException();
+    return this.sanitizeUser(user);
   }
 }
