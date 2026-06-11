@@ -1,99 +1,57 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
-import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
-import { TransformInterceptor } from './common/interceptors/transform.interceptor';
-import helmet from 'helmet';
-import compression from 'compression';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
-    logger:
-      process.env.NODE_ENV === 'production'
-        ? ['error', 'warn', 'log']
-        : ['error', 'warn', 'log', 'debug', 'verbose'],
-  });
+  const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
+  const logger = new Logger('Bootstrap');
 
-  // ── Sécurité ─────────────────────────────────────────────
-  app.use(
-    helmet({
-      crossOriginEmbedderPolicy: false,
-      contentSecurityPolicy: false, // désactivé pour Swagger UI
-    }),
-  );
+  // ─── Global prefix ────────────────────────────
+  // app.setGlobalPrefix('api'); // optional
 
-  // ── Compression gzip ─────────────────────────────────────
-  app.use(compression());
-
-  // ── CORS ─────────────────────────────────────────────────
-  const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
-    .split(',')
-    .map((o) => o.trim());
-
+  // ─── CORS ─────────────────────────────────────
   app.enableCors({
-    origin: (origin, callback) => {
-      // Autorise les appels sans origin (ex: curl, Swagger, mobile)
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error(`Origin non autorisée: ${origin}`));
-      }
-    },
-    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    origin: configService.get('CORS_ORIGIN', 'http://localhost:5173'),
     credentials: true,
   });
 
-  // ── Préfixe global ───────────────────────────────────────
-  app.setGlobalPrefix('api');
-
-  // ── Validation ───────────────────────────────────────────
+  // ─── Validation ───────────────────────────────
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
+      transformOptions: { enableImplicitConversion: true },
     }),
   );
 
-  // ── Filtres & intercepteurs ──────────────────────────────
-  app.useGlobalFilters(new AllExceptionsFilter());
-  app.useGlobalInterceptors(new TransformInterceptor());
+  // ─── Swagger ──────────────────────────────────
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('BizFlow API')
+    .setDescription('API de gestion pour petites entreprises')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .addTag('auth', 'Authentification')
+    .addTag('dashboard', 'Tableau de bord')
+    .addTag('clients', 'Gestion des clients')
+    .addTag('invoices', 'Facturation')
+    .addTag('products', 'Catalogue produits')
+    .addTag('stock', 'Mouvements de stock')
+    .addTag('expenses', 'Dépenses')
+    .build();
 
-  // ── Swagger (actif en dev, optionnel en prod) ────────────
-  if (
-    process.env.NODE_ENV !== 'production' ||
-    process.env.SWAGGER_ENABLED === 'true'
-  ) {
-    const config = new DocumentBuilder()
-      .setTitle('Gestion Entreprises API')
-      .setDescription('API REST — facturation, stock, clients, dépenses')
-      .setVersion('1.0')
-      .addBearerAuth()
-      .addTag('Authentification')
-      .addTag('Tableau de bord')
-      .addTag('Clients')
-      .addTag('Produits / Stock')
-      .addTag('Factures')
-      .addTag('Dépenses')
-      .addTag('Health')
-      .build();
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api', app, document, {
+    swaggerOptions: { persistAuthorization: true },
+  });
 
-    const document = SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup('api/docs', app, document, {
-      swaggerOptions: { persistAuthorization: true },
-    });
-  }
-
-  // ── Écoute ───────────────────────────────────────────────
-  const port = parseInt(process.env.PORT || '3000', 10);
+  const port = configService.get<number>('PORT', 3000);
   await app.listen(port, '0.0.0.0');
-
-  const url = `http://localhost:${port}`;
-  console.log(`\n🚀  API      : ${url}/api`);
-  console.log(`📚  Swagger  : ${url}/api/docs`);
-  console.log(`❤️   Health   : ${url}/api/health`);
-  console.log(`🌍  Env      : ${process.env.NODE_ENV || 'development'}\n`);
+  logger.log(`🚀 Application démarrée sur http://localhost:${port}`);
+  logger.log(`📚 Swagger disponible sur http://localhost:${port}/api`);
 }
+
 bootstrap();
