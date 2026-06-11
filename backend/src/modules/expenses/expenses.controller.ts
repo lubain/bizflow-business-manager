@@ -2,74 +2,84 @@ import {
   Controller,
   Get,
   Post,
-  Body,
   Patch,
-  Param,
   Delete,
-  ParseIntPipe,
+  Param,
+  Body,
+  Query,
   UseGuards,
+  Request,
+  ParseUUIDPipe,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiParam,
-} from '@nestjs/swagger';
-import { ExpensesService } from './expenses.service';
-import { CreateExpenseDto, UpdateExpenseDto } from './dto/expense.dto';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { ExpensesService } from './expenses.service';
+import { CreateExpenseDto } from './dto/create-expense.dto';
+import { UpdateExpenseDto } from './dto/update-expense.dto';
+import { ExpenseQueryDto } from './dto/expense-query.dto';
+import { IsEnum } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
-@ApiTags('Dépenses')
+class UpdateExpenseStatusDto {
+  @ApiProperty({ enum: ['approved', 'rejected'] })
+  @IsEnum(['approved', 'rejected'])
+  status: 'approved' | 'rejected';
+}
+
+@ApiTags('expenses')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('expenses')
 export class ExpensesController {
   constructor(private readonly expensesService: ExpensesService) {}
 
-  @Get()
-  @ApiOperation({ summary: 'Lister toutes les dépenses' })
-  findAll() {
-    return this.expensesService.findAll();
+  @Post()
+  create(@Body() dto: CreateExpenseDto, @Request() req: any) {
+    return this.expensesService.create(dto, req.user.id);
   }
 
-  @Get('by-category')
-  @ApiOperation({ summary: 'Total des dépenses groupées par catégorie' })
-  findByCategory() {
-    return this.expensesService.findByCategory();
+  @Get()
+  findAll(@Query() query: ExpenseQueryDto, @Request() req: any) {
+    return this.expensesService.findAll(query, req.user.id);
+  }
+
+  @Get('report')
+  @ApiOperation({ summary: 'Rapport annuel des dépenses' })
+  getReport(@Query('year') year: number, @Request() req: any) {
+    return this.expensesService.getReport(
+      req.user.id,
+      year ?? new Date().getFullYear(),
+    );
   }
 
   @Get(':id')
-  @ApiParam({ name: 'id', type: Number })
-  @ApiOperation({ summary: 'Récupérer une dépense par ID' })
-  @ApiResponse({ status: 404, description: 'Dépense introuvable' })
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.expensesService.findOne(id);
-  }
-
-  @Post()
-  @ApiOperation({ summary: 'Créer une dépense' })
-  create(@Body() createExpenseDto: CreateExpenseDto) {
-    return this.expensesService.create(createExpenseDto);
+  findOne(@Param('id', ParseUUIDPipe) id: string, @Request() req: any) {
+    return this.expensesService.findOne(id, req.user.id);
   }
 
   @Patch(':id')
-  @ApiParam({ name: 'id', type: Number })
-  @ApiOperation({ summary: 'Modifier une dépense' })
   update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateExpenseDto: UpdateExpenseDto,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateExpenseDto,
+    @Request() req: any,
   ) {
-    return this.expensesService.update(id, updateExpenseDto);
+    return this.expensesService.update(id, dto, req.user.id);
+  }
+
+  @Patch(':id/status')
+  updateStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateExpenseStatusDto,
+    @Request() req: any,
+  ) {
+    return this.expensesService.updateStatus(id, dto.status, req.user.id);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiParam({ name: 'id', type: Number })
-  @ApiOperation({ summary: 'Supprimer une dépense' })
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.expensesService.remove(id);
+  remove(@Param('id', ParseUUIDPipe) id: string, @Request() req: any) {
+    return this.expensesService.remove(id, req.user.id);
   }
 }

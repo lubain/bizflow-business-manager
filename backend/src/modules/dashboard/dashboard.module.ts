@@ -1,13 +1,14 @@
 import { Module } from '@nestjs/common';
-import { DashboardService } from './dashboard.service';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { DashboardController } from './dashboard.controller';
-import { InvoicesModule } from '../invoices/invoices.module';
-import { ExpensesModule } from '../expenses/expenses.module';
-import { ClientsModule } from '../clients/clients.module';
-import { ProductsModule } from '../products/products.module';
+import { DashboardService } from './dashboard.service';
+import { Invoice } from '../invoices/invoice.entity';
+import { Expense } from '../expenses/expense.entity';
+import { Client } from '../clients/client.entity';
+import { Product } from '../products/product.entity';
 
 @Module({
-  imports: [InvoicesModule, ExpensesModule, ClientsModule, ProductsModule],
+  imports: [TypeOrmModule.forFeature([Invoice, Expense, Client, Product])],
   controllers: [DashboardController],
   providers: [DashboardService],
 })

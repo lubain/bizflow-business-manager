@@ -1,88 +1,113 @@
 import {
   Injectable,
   NotFoundException,
-  BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Product } from './entities/product.entity';
-import {
-  CreateProductDto,
-  UpdateProductDto,
-  UpdateStockDto,
-} from './dto/product.dto';
+import { Product, ProductCategory } from './product.entity';
+import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
+import { ProductQueryDto } from './dto/product-query.dto';
 
 @Injectable()
 export class ProductsService {
   constructor(
-    @InjectRepository(Product)
-    private productRepository: Repository<Product>,
+    @InjectRepository(Product) private productRepo: Repository<Product>,
   ) {}
 
-  async findAll(): Promise<Product[]> {
-    return this.productRepository.find({ order: { createdAt: 'DESC' } });
+  async create(dto: CreateProductDto, userId: string): Promise<Product> {
+    const exists = await this.productRepo.findOne({
+      where: { reference: dto.reference, userId },
+    });
+    if (exists) throw new ConflictException('Référence déjà utilisée');
+
+    // Cast explicite pour satisfaire TypeORM DeepPartial
+    const product = this.productRepo.create({
+      reference: dto.reference,
+      name: dto.name,
+      description: dto.description ?? null,
+      category: dto.category as ProductCategory,
+      unitPrice: dto.unitPrice,
+      purchasePrice: dto.purchasePrice ?? 0,
+      vatRate: dto.vatRate ?? 20,
+      unit: dto.unit ?? 'unité',
+      stockQuantity: dto.stockQuantity ?? 0,
+      minStock: dto.minStock ?? 0,
+      isService: dto.isService ?? false,
+      isActive: true,
+      userId,
+    });
+
+    return this.productRepo.save(product);
   }
 
-  async findOne(id: number): Promise<Product> {
-    const product = await this.productRepository.findOne({ where: { id } });
-    if (!product) {
-      throw new NotFoundException(`Produit #${id} introuvable`);
-    }
-    return product;
+  async findAll(query: ProductQueryDto, userId: string) {
+    const { page = 1, limit = 20, search, lowStock, isService } = query;
+
+    const qb = this.productRepo
+      .createQueryBuilder('p')
+      .where('p.userId = :userId AND p.isActive = true', { userId });
+
+    if (search)
+      qb.andWhere('(p.name ILIKE :s OR p.reference ILIKE :s)', {
+        s: `%${search}%`,
+      });
+    if (isService !== undefined)
+      qb.andWhere('p.isService = :isService', { isService });
+
+    const [data, total] = await qb
+      .orderBy('p.name', 'ASC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    const filtered = lowStock
+      ? data.filter((p) => !p.isService && p.stockQuantity <= p.minStock)
+      : data;
+
+    return {
+      data: filtered,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
-  async findLowStock(): Promise<Product[]> {
-    return this.productRepository
-      .createQueryBuilder('product')
-      .where('product.stock <= product.minStock')
-      .orderBy('product.stock', 'ASC')
-      .getMany();
-  }
-
-  async create(createProductDto: CreateProductDto): Promise<Product> {
-    const product = this.productRepository.create(createProductDto);
-    return this.productRepository.save(product);
+  async findOne(id: string, userId: string): Promise<Product> {
+    const p = await this.productRepo.findOne({ where: { id, userId } });
+    if (!p) throw new NotFoundException('Produit introuvable');
+    return p;
   }
 
   async update(
-    id: number,
-    updateProductDto: UpdateProductDto,
+    id: string,
+    dto: UpdateProductDto,
+    userId: string,
   ): Promise<Product> {
-    const product = await this.findOne(id);
-    Object.assign(product, updateProductDto);
-    return this.productRepository.save(product);
+    const product = await this.findOne(id, userId);
+
+    // Merge manuellement pour garder les types stricts
+    if (dto.reference !== undefined) product.reference = dto.reference;
+    if (dto.name !== undefined) product.name = dto.name;
+    if (dto.description !== undefined)
+      product.description = dto.description ?? null;
+    if (dto.category !== undefined)
+      product.category = dto.category as ProductCategory;
+    if (dto.unitPrice !== undefined) product.unitPrice = dto.unitPrice;
+    if (dto.purchasePrice !== undefined)
+      product.purchasePrice = dto.purchasePrice;
+    if (dto.vatRate !== undefined) product.vatRate = dto.vatRate;
+    if (dto.unit !== undefined) product.unit = dto.unit;
+    if (dto.stockQuantity !== undefined)
+      product.stockQuantity = dto.stockQuantity;
+    if (dto.minStock !== undefined) product.minStock = dto.minStock;
+    if (dto.isService !== undefined) product.isService = dto.isService;
+
+    return this.productRepo.save(product);
   }
 
-  async updateStock(
-    id: number,
-    updateStockDto: UpdateStockDto,
-  ): Promise<Product> {
-    const product = await this.findOne(id);
-    const newStock = Number(product.stock) + updateStockDto.quantity;
-
-    if (newStock < 0) {
-      throw new BadRequestException(
-        `Stock insuffisant. Stock actuel: ${product.stock}`,
-      );
-    }
-
-    product.stock = newStock;
-    return this.productRepository.save(product);
-  }
-
-  async remove(id: number): Promise<void> {
-    const product = await this.findOne(id);
-    await this.productRepository.remove(product);
-  }
-
-  async count(): Promise<number> {
-    return this.productRepository.count();
-  }
-
-  async countLowStock(): Promise<number> {
-    return this.productRepository
-      .createQueryBuilder('product')
-      .where('product.stock <= product.minStock')
-      .getCount();
+  async remove(id: string, userId: string): Promise<void> {
+    const product = await this.findOne(id, userId);
+    product.isActive = false;
+    await this.productRepo.save(product);
   }
 }

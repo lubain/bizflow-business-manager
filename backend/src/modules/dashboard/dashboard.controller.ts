@@ -1,14 +1,9 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-} from '@nestjs/swagger';
-import { DashboardService } from './dashboard.service';
+import { Controller, Get, UseGuards, Request } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { DashboardService } from './dashboard.service';
 
-@ApiTags('Tableau de bord')
+@ApiTags('dashboard')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('dashboard')
@@ -16,20 +11,8 @@ export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Statistiques globales du tableau de bord' })
-  @ApiResponse({
-    status: 200,
-    description: 'Chiffres clés, revenus, dépenses, stock...',
-  })
-  getStats() {
-    return this.dashboardService.getStats();
-  }
-
-  @Get('revenue-vs-expenses')
-  @ApiOperation({
-    summary: 'Comparaison mensuelle revenus / dépenses / profit',
-  })
-  getRevenueVsExpenses() {
-    return this.dashboardService.getRevenueVsExpenses();
+  @ApiOperation({ summary: 'Données complètes du tableau de bord' })
+  getData(@Request() req: any) {
+    return this.dashboardService.getData(req.user.id);
   }
 }

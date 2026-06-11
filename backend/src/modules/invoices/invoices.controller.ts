@@ -2,89 +2,82 @@ import {
   Controller,
   Get,
   Post,
-  Body,
   Patch,
-  Param,
   Delete,
-  ParseIntPipe,
+  Param,
+  Body,
+  Query,
   UseGuards,
+  Request,
+  ParseUUIDPipe,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
 import {
   ApiTags,
+  ApiBearerAuth,
   ApiOperation,
   ApiResponse,
-  ApiBearerAuth,
-  ApiParam,
 } from '@nestjs/swagger';
-import { InvoicesService } from './invoices.service';
-import { CreateInvoiceDto, UpdateInvoiceDto } from './dto/invoice.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { InvoicesService } from './invoices.service';
+import { CreateInvoiceDto } from './dto/create-invoice.dto';
+import { UpdateInvoiceDto } from './dto/update-invoice.dto';
+import { InvoiceQueryDto } from './dto/invoice-query.dto';
+import { UpdateInvoiceStatusDto } from './dto/update-invoice-status.dto';
 
-@ApiTags('Factures')
+@ApiTags('invoices')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('invoices')
 export class InvoicesController {
   constructor(private readonly invoicesService: InvoicesService) {}
 
+  @Post()
+  @ApiOperation({ summary: 'Créer une facture' })
+  create(@Body() dto: CreateInvoiceDto, @Request() req: any) {
+    return this.invoicesService.create(dto, req.user.id);
+  }
+
   @Get()
-  @ApiOperation({ summary: 'Lister toutes les factures' })
-  findAll() {
-    return this.invoicesService.findAll();
-  }
-
-  @Get('overdue/update')
-  @ApiOperation({ summary: 'Mettre à jour les factures en retard' })
-  updateOverdue() {
-    return this.invoicesService.updateOverdueInvoices();
-  }
-
-  @Get('client/:clientId')
-  @ApiParam({ name: 'clientId', type: Number })
-  @ApiOperation({ summary: "Factures d'un client" })
-  findByClient(@Param('clientId', ParseIntPipe) clientId: number) {
-    return this.invoicesService.findByClient(clientId);
+  @ApiOperation({ summary: 'Lister les factures avec pagination et filtres' })
+  findAll(@Query() query: InvoiceQueryDto, @Request() req: any) {
+    return this.invoicesService.findAll(query, req.user.id);
   }
 
   @Get(':id')
-  @ApiParam({ name: 'id', type: Number })
-  @ApiOperation({ summary: 'Récupérer une facture par ID' })
-  @ApiResponse({ status: 404, description: 'Facture introuvable' })
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.invoicesService.findOne(id);
-  }
-
-  @Post()
-  @ApiOperation({ summary: 'Créer une facture' })
-  create(@Body() createInvoiceDto: CreateInvoiceDto) {
-    return this.invoicesService.create(createInvoiceDto);
+  findOne(@Param('id', ParseUUIDPipe) id: string, @Request() req: any) {
+    return this.invoicesService.findOne(id, req.user.id);
   }
 
   @Patch(':id')
-  @ApiParam({ name: 'id', type: Number })
-  @ApiOperation({ summary: 'Modifier une facture' })
   update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateInvoiceDto: UpdateInvoiceDto,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateInvoiceDto,
+    @Request() req: any,
   ) {
-    return this.invoicesService.update(id, updateInvoiceDto);
+    return this.invoicesService.update(id, dto, req.user.id);
   }
 
-  @Patch(':id/mark-as-paid')
-  @ApiParam({ name: 'id', type: Number })
-  @ApiOperation({ summary: 'Marquer une facture comme payée' })
-  @ApiResponse({ status: 400, description: 'Facture déjà payée' })
-  markAsPaid(@Param('id', ParseIntPipe) id: number) {
-    return this.invoicesService.markAsPaid(id);
+  @Patch(':id/status')
+  @ApiOperation({ summary: "Changer le statut d'une facture" })
+  updateStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateInvoiceStatusDto,
+    @Request() req: any,
+  ) {
+    return this.invoicesService.updateStatus(id, dto.status, req.user.id);
+  }
+
+  @Post(':id/duplicate')
+  @ApiOperation({ summary: 'Dupliquer une facture' })
+  duplicate(@Param('id', ParseUUIDPipe) id: string, @Request() req: any) {
+    return this.invoicesService.duplicate(id, req.user.id);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiParam({ name: 'id', type: Number })
-  @ApiOperation({ summary: 'Supprimer une facture' })
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.invoicesService.remove(id);
+  remove(@Param('id', ParseUUIDPipe) id: string, @Request() req: any) {
+    return this.invoicesService.remove(id, req.user.id);
   }
 }

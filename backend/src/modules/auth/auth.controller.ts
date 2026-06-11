@@ -1,70 +1,45 @@
 import {
   Controller,
   Post,
-  Body,
   Get,
+  Body,
   UseGuards,
   Request,
-  HttpCode,
-  HttpStatus,
-  Patch,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-} from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
-@ApiTags('Authentification')
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post('login')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Connexion utilisateur' })
-  @ApiResponse({
-    status: 200,
-    description: 'Connexion réussie, retourne le token JWT',
-  })
-  @ApiResponse({ status: 401, description: 'Email ou mot de passe incorrect' })
-  login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto);
+  @Post('register')
+  @ApiOperation({ summary: 'Créer un compte' })
+  register(@Body() dto: RegisterDto) {
+    return this.authService.register(dto);
   }
 
-  @Post('register')
-  @ApiOperation({ summary: "Inscription d'un nouvel utilisateur" })
-  @ApiResponse({ status: 201, description: 'Utilisateur créé avec succès' })
-  @ApiResponse({ status: 409, description: 'Email déjà utilisé' })
-  register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
+  @Post('login')
+  @ApiOperation({ summary: 'Se connecter' })
+  login(@Body() dto: LoginDto) {
+    return this.authService.login(dto);
+  }
+
+  @Post('refresh')
+  @ApiOperation({ summary: 'Rafraîchir le token' })
+  refresh(@Body('refreshToken') token: string) {
+    return this.authService.refresh(token);
   }
 
   @Get('me')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: "Récupérer le profil de l'utilisateur connecté" })
-  getProfile(@Request() req) {
-    return this.authService.getProfile(req.user.id);
-  }
-
-  @Patch('change-password')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Modifier le mot de passe' })
-  changePassword(
-    @Request() req,
-    @Body() body: { currentPassword: string; newPassword: string },
-  ) {
-    return this.authService.changePassword(
-      req.user.id,
-      body.currentPassword,
-      body.newPassword,
-    );
+  @ApiOperation({ summary: 'Profil utilisateur connecté' })
+  me(@Request() req: any) {
+    return this.authService.getMe(req.user.id);
   }
 }
