@@ -4,11 +4,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
-import { TrendingUp, Eye, EyeOff } from "lucide-react";
+import { TrendingUp, Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { apiPost } from "@/utils/apiClient";
 import { AuthTokens } from "@/types";
 import { useAuthStore } from "@/store/authStore";
+import { cn } from "@/utils/helpers";
 
 const loginSchema = z.object({
   email: z.string().email("Email invalide"),
@@ -65,17 +66,29 @@ export default function LoginPage() {
             onSubmit={handleSubmit((d) => mutation.mutate(d))}
             className="space-y-4"
           >
+            {/* Email */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 Email
               </label>
-              <input
-                type="email"
-                autoComplete="email"
-                {...register("email")}
-                placeholder="vous@exemple.fr"
-                className="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-shadow"
-              />
+              <div className="relative">
+                <Mail
+                  size={15}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                />
+                <input
+                  type="email"
+                  autoComplete="email"
+                  placeholder="vous@exemple.fr"
+                  {...register("email")}
+                  className={cn(
+                    "w-full pl-9 pr-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-shadow",
+                    errors.email
+                      ? "border-red-300 bg-red-50"
+                      : "border-gray-200",
+                  )}
+                />
+              </div>
               {errors.email && (
                 <p className="text-xs text-red-500 mt-1">
                   {errors.email.message}
@@ -83,24 +96,34 @@ export default function LoginPage() {
               )}
             </div>
 
+            {/* Mot de passe */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 Mot de passe
               </label>
               <div className="relative">
+                <Lock
+                  size={15}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                />
                 <input
                   type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
-                  {...register("password")}
                   placeholder="••••••••"
-                  className="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-shadow"
+                  {...register("password")}
+                  className={cn(
+                    "w-full pl-9 pr-10 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-shadow",
+                    errors.password
+                      ? "border-red-300 bg-red-50"
+                      : "border-gray-200",
+                  )}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               </div>
               {errors.password && (
