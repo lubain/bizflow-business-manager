@@ -31,6 +31,7 @@ import {
 } from "@/components/layout/ResponsiveTable";
 import { usePortalPopover } from "@/hooks/usePortalPopover";
 
+// ─── Filtres statut ────────────────────────────
 const STATUS_FILTERS: { label: string; value: InvoiceStatus | "all" }[] = [
   { label: "Toutes", value: "all" },
   { label: "Brouillons", value: "draft" },
@@ -40,9 +41,15 @@ const STATUS_FILTERS: { label: string; value: InvoiceStatus | "all" }[] = [
   { label: "Annulées", value: "cancelled" },
 ];
 
+// ─── Transitions autorisées ────────────────────
 const STATUS_ACTIONS: Record<
   InvoiceStatus,
-  { status: InvoiceStatus; label: string; icon: any; color: string }[]
+  {
+    status: InvoiceStatus;
+    label: string;
+    icon: React.ElementType;
+    color: string;
+  }[]
 > = {
   draft: [
     {
@@ -90,17 +97,19 @@ const STATUS_ACTIONS: Record<
   cancelled: [],
 };
 
-function StatusMenu({
+// ─── Menu statut (portail) ─────────────────────
+function InvoiceStatusMenu({
   invoice,
   onUpdate,
 }: {
   invoice: Invoice;
-  onUpdate: (id: string, s: InvoiceStatus) => void;
+  onUpdate: (id: string, status: InvoiceStatus) => void;
 }) {
-  const { open, toggle, anchorRef, portal, close, placement } =
+  const { open, toggle, close, anchorRef, portal, placement } =
     usePortalPopover();
   const actions = STATUS_ACTIONS[invoice.status] ?? [];
 
+  // Statuts finaux → badge simple sans menu
   if (!actions.length) {
     return (
       <span
@@ -120,7 +129,8 @@ function StatusMenu({
         ref={anchorRef}
         onClick={toggle}
         className={cn(
-          "flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium hover:opacity-80 transition-opacity",
+          "flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium",
+          "hover:opacity-80 transition-opacity cursor-pointer",
           INVOICE_STATUS_COLORS[invoice.status],
         )}
       >
@@ -128,33 +138,33 @@ function StatusMenu({
         <ChevronDown
           size={11}
           className={cn(
-            "transition-transform duration-200",
-            open && placement === "bottom" && "rotate-180",
-            open && placement === "top" && "rotate-0",
-            !open && placement === "top" && "rotate-180",
+            "transition-transform duration-150",
+            open && placement === "bottom" ? "rotate-180" : "",
+            !open && placement === "top" ? "rotate-180" : "",
           )}
         />
       </button>
 
       {portal(
         <div
-          className="bg-white border border-gray-200 rounded-xl shadow-xl py-1 w-48"
+          className="bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden"
           style={{
-            animation: `${placement === "top" ? "bizflow-popover-in-up" : "bizflow-popover-in"} 120ms ease`,
+            animation: "popoverIn 120ms ease",
             transformOrigin: placement === "top" ? "bottom left" : "top left",
           }}
         >
-          <p className="px-3 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-100 mb-1">
+          <p className="px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider bg-gray-50 border-b border-gray-100">
             Changer le statut
           </p>
           {actions.map(({ status, label, icon: Icon, color }) => (
             <button
               key={status}
-              onClick={() => {
+              onMouseDown={(e) => {
+                e.preventDefault(); // empêche le blur qui fermerait avant le clic
                 onUpdate(invoice.id, status);
                 close();
               }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
             >
               <Icon size={14} className={color} />
               {label}
@@ -166,6 +176,7 @@ function StatusMenu({
   );
 }
 
+// ─── Page principale ───────────────────────────
 export default function InvoicesPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -189,10 +200,10 @@ export default function InvoicesPage() {
   const updateStatus = useMutation({
     mutationFn: ({ id, status }: { id: string; status: InvoiceStatus }) =>
       apiPatch(`/invoices/${id}/status`, { status }),
-    onSuccess: (_, v) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      toast.success(`Statut mis à jour`);
+      toast.success("Statut mis à jour");
     },
     onError: (e: any) =>
       toast.error(e.response?.data?.message ?? "Transition invalide"),
@@ -200,7 +211,7 @@ export default function InvoicesPage() {
 
   const duplicate = useMutation({
     mutationFn: (id: string) => apiPost<Invoice>(`/invoices/${id}/duplicate`),
-    onSuccess: (inv: Invoice) => {
+    onSuccess: (inv) => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       toast.success("Facture dupliquée");
       navigate(`/invoices/${inv.id}/edit`);
@@ -247,7 +258,7 @@ export default function InvoicesPage() {
       header: "Total TTC",
       render: (inv) => (
         <span className="font-semibold text-gray-900">
-          {formatCurrency(inv.totalTTC)}
+          {formatCurrency(Number(inv.totalTTC))}
         </span>
       ),
     },
@@ -255,18 +266,17 @@ export default function InvoicesPage() {
       key: "status",
       header: "Statut",
       render: (inv) => (
-        <StatusMenu
+        <InvoiceStatusMenu
           invoice={inv}
-          onUpdate={(id, s) => updateStatus.mutate({ id, status: s })}
+          onUpdate={(id, status) => updateStatus.mutate({ id, status })}
         />
       ),
     },
     {
       key: "actions",
       header: "",
-      hideOnMobile: false,
       render: (inv) => (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -303,80 +313,92 @@ export default function InvoicesPage() {
   ];
 
   return (
-    <div className="space-y-4 md:space-y-5">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl md:text-2xl font-semibold text-gray-900">
-            Factures
-          </h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            {data?.meta.total ?? 0} au total
-          </p>
-        </div>
-        <button
-          onClick={() => navigate("/invoices/new")}
-          className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-3 md:px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
-        >
-          <Plus size={16} />
-          <span className="hidden sm:inline">Nouvelle facture</span>
-          <span className="sm:hidden">Nouveau</span>
-        </button>
-      </div>
+    <>
+      {/* Animation portail */}
+      <style>{`
+        @keyframes popoverIn {
+          from { opacity: 0; transform: scaleY(0.9); }
+          to   { opacity: 1; transform: scaleY(1);   }
+        }
+      `}</style>
 
-      {/* Filters */}
-      <div className="bg-white border border-gray-200 rounded-xl p-3 md:p-4 shadow-card space-y-3">
-        <div className="relative">
-          <Search
-            size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-          />
-          <input
-            type="text"
-            placeholder="Rechercher…"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-          />
+      <div className="space-y-4 md:space-y-5">
+        {/* Header */}
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h1 className="text-xl md:text-2xl font-semibold text-gray-900">
+              Factures
+            </h1>
+            <p className="text-sm text-gray-500 mt-0.5">
+              {data?.meta.total ?? 0} au total
+            </p>
+          </div>
+          <button
+            onClick={() => navigate("/invoices/new")}
+            className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-3 md:px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
+          >
+            <Plus size={16} />
+            <span className="hidden sm:inline">Nouvelle facture</span>
+            <span className="sm:hidden">Nouveau</span>
+          </button>
         </div>
-        <div className="flex gap-1 flex-wrap">
-          {STATUS_FILTERS.map(({ label, value }) => (
-            <button
-              key={value}
-              onClick={() => {
-                setStatusFilter(value);
+
+        {/* Filtres */}
+        <div className="bg-white border border-gray-200 rounded-xl p-3 md:p-4 shadow-card space-y-3">
+          <div className="relative">
+            <Search
+              size={16}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            />
+            <input
+              type="text"
+              placeholder="Rechercher par numéro ou client…"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
                 setPage(1);
               }}
-              className={cn(
-                "px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors",
-                statusFilter === value
-                  ? "bg-brand-600 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200",
-              )}
-            >
-              {label}
-            </button>
-          ))}
+              className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+          <div className="flex gap-1 flex-wrap">
+            {STATUS_FILTERS.map(({ label, value }) => (
+              <button
+                key={value}
+                onClick={() => {
+                  setStatusFilter(value);
+                  setPage(1);
+                }}
+                className={cn(
+                  "px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors",
+                  statusFilter === value
+                    ? "bg-brand-600 text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
 
-      <ResponsiveTable
-        columns={columns}
-        data={data?.data ?? []}
-        keyExtractor={(inv) => inv.id}
-        emptyMessage="Aucune facture"
-        loading={isLoading}
-        footer={
-          <TablePagination
-            page={page}
-            totalPages={data?.meta.totalPages ?? 1}
-            onPrev={() => setPage((p) => p - 1)}
-            onNext={() => setPage((p) => p + 1)}
-          />
-        }
-      />
-    </div>
+        {/* Table */}
+        <ResponsiveTable
+          columns={columns}
+          data={data?.data ?? []}
+          keyExtractor={(inv) => inv.id}
+          emptyMessage="Aucune facture"
+          loading={isLoading}
+          footer={
+            <TablePagination
+              page={page}
+              totalPages={data?.meta.totalPages ?? 1}
+              onPrev={() => setPage((p) => p - 1)}
+              onNext={() => setPage((p) => p + 1)}
+            />
+          }
+        />
+      </div>
+    </>
   );
 }

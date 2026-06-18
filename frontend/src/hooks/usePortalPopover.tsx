@@ -82,8 +82,6 @@ export function usePortalPopover() {
             <div
               style={{
                 position: "absolute",
-                // Placement bottom : ancré sous le bouton
-                // Placement top   : ancré au-dessus (fixed depuis le bas de la page)
                 ...(pos.placement === "bottom"
                   ? { top: pos.top }
                   : { bottom: pos.anchorBottom }),
